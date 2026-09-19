@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block guest_content %}
+<div class="auth-shell">
+  <div class="auth-card">
+    <div class="logo-row">
+      <div><span class="logo">🤖</span><h1>LMS + Agentic AI</h1></div>
+      {% include "partials/theme_toggle.html" %}
+    </div>
+    <p class="hint" style="margin-top:-8px;margin-bottom:16px;">Sign in to continue</p>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="btn" type="submit" style="width:100%;margin-top:6px;">Login</button>
+    </form>
+    <p class="hint">New here? <a href="{% url 'register_student' %}">Register as Student</a> · <a href="{% url 'register_instructor' %}">Register as Instructor</a></p>
+  </div>
+</div>
+{% endblock %}

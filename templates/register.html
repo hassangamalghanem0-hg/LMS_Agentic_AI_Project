@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Register{% endblock %}
+{% block guest_content %}
+<div class="auth-shell">
+  <div class="auth-card" style="max-width:460px;">
+    <div class="logo-row">
+      <div>
+        <span class="logo">{% if role == 'student' %}🎓{% else %}🧑‍🏫{% endif %}</span>
+        <h1>{% if role == 'student' %}Create your Student account{% else %}Create your Instructor account{% endif %}</h1>
+      </div>
+      {% include "partials/theme_toggle.html" %}
+    </div>
+
+    {% if form.non_field_errors %}
+      <div class="messages"><div class="msg msg-error">{{ form.non_field_errors }}</div></div>
+    {% endif %}
+
+    {% if role == 'student' and not has_courses %}
+      <div class="msg msg-warning" style="margin-bottom:16px;">
+        No courses are available yet — an instructor needs to register first before students can join.
+      </div>
+      <p class="hint">Are you an instructor? <a href="{% url 'register_instructor' %}">Register as instructor instead</a>.</p>
+    {% else %}
+    <form method="post">
+      {% csrf_token %}
+      <div class="field-group">
+        <label class="field-label">Username</label>
+        {{ form.username }}
+        {% for e in form.username.errors %}<div class="msg msg-error" style="margin-top:4px;">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="field-group">
+        <label class="field-label">Email (optional)</label>
+        {{ form.email }}
+      </div>
+      <div class="field-group">
+        <label class="field-label">Password</label>
+        {{ form.password1 }}
+        {% for e in form.password1.errors %}<div class="msg msg-error" style="margin-top:4px;">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="field-group">
+        <label class="field-label">Confirm password</label>
+        {{ form.password2 }}
+        {% for e in form.password2.errors %}<div class="msg msg-error" style="margin-top:4px;">{{ e }}</div>{% endfor %}
+      </div>
+
+      {% if role == 'student' %}
+        <div class="field-group">
+          <label class="field-label">{{ form.course.label }}</label>
+          {{ form.course }}
+          <div class="hint" style="margin-top:6px;">{{ form.course.help_text }}</div>
+          {% for e in form.course.errors %}<div class="msg msg-error" style="margin-top:4px;">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="field-group">
+          <label class="field-label">Current level</label>
+          {{ form.level }}
+        </div>
+      {% else %}
+        <div class="field-group">
+          <label class="field-label">{{ form.course_title.label }}</label>
+          {{ form.course_title }}
+          {% for e in form.course_title.errors %}<div class="msg msg-error" style="margin-top:4px;">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="field-group">
+          <label class="field-label">{{ form.course_description.label }}</label>
+          {{ form.course_description }}
+        </div>
+        <div class="field-group">
+          <label class="field-label">Department</label>
+          {{ form.department }}
+        </div>
+      {% endif %}
+      <div class="field-group">
+        <label class="field-label">{{ form.bio.label }}</label>
+        {{ form.bio }}
+      </div>
+
+      <button class="btn" type="submit" style="width:100%;margin-top:6px;">Create account</button>
+    </form>
+    {% endif %}
+    <p class="hint">Already have an account? <a href="{% url 'login' %}">Log in</a> · <a href="{% url 'dashboard' %}">← Back</a></p>
+  </div>
+</div>
+{% endblock %}

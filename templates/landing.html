@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}LMS + Agentic AI{% endblock %}
+{% block guest_content %}
+<div class="landing">
+  <nav class="landing-nav">
+    <div class="landing-brand"><span class="logo">🤖</span> LMS Agentic AI</div>
+    <div class="landing-nav-actions">
+      {% include "partials/theme_toggle.html" %}
+      <a href="{% url 'login' %}" class="btn btn-ghost btn-small">Log In</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <span class="ai-badge" style="margin-bottom:14px;">✨ Agentic AI-powered LMS</span>
+    <h1>Courses, quizzes, and lectures —<br>with agents that take real action for you</h1>
+    <p class="hero-sub">
+      Study plans built from your actual performance, quizzes and summaries generated straight from
+      lecture files, and instant multiple-choice grading — all without leaving the platform.
+    </p>
+    <div class="btn-row" style="justify-content:center;margin-top:20px;">
+      <a href="{% url 'login' %}" class="btn">Log In</a>
+      <a href="#roles" class="btn btn-ghost">Create an Account</a>
+    </div>
+  </section>
+
+  <section class="role-cards" id="roles">
+    <div class="role-card">
+      <div class="role-icon">🎓</div>
+      <h2>I'm a Student</h2>
+      <p class="muted">Track your progress, get study plans and quizzes tailored to your performance, and access your course's lectures and materials.</p>
+      <a href="{% url 'register_student' %}" class="btn" style="width:100%;">Register as Student</a>
+    </div>
+    <div class="role-card">
+      <div class="role-icon">🧑‍🏫</div>
+      <h2>I'm an Instructor</h2>
+      <p class="muted">Set up your course, upload lectures and materials, generate quizzes with AI straight from your files, and grade essays manually.</p>
+      <a href="{% url 'register_instructor' %}" class="btn" style="width:100%;">Register as Instructor</a>
+    </div>
+  </section>
+
+  <p class="landing-footer">Already have an account? <a href="{% url 'login' %}">Log in here</a></p>
+</div>
+{% endblock %}

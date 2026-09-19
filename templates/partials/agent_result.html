@@ -1,0 +1,37 @@
+{% if agent_result %}
+<div class="card agent-result">
+  <div class="agent-result-head">
+    <span class="ai-badge">✨ AI Agent</span>
+    <h2 class="section-title" style="margin:0;">{{ agent_result.title }}</h2>
+  </div>
+
+  {% if agent_result.kind == 'text' %}
+    <div class="summary-box">{{ agent_result.text|linebreaksbr }}</div>
+
+  {% elif agent_result.kind == 'quiz' %}
+    {% for q in agent_result.questions %}
+      <div class="question-block">
+        <strong>Q{{ forloop.counter }}.</strong> {{ q.question }}
+        {% if q.choices %}
+          <div style="margin-top:10px;">
+            {% for c in q.choices %}
+              <div class="choice-row {% if c == q.correct_answer %}choice-correct{% endif %}">
+                {% if c == q.correct_answer %}✅{% else %}▫️{% endif %} {{ c }}
+              </div>
+            {% endfor %}
+          </div>
+        {% elif q.correct_answer %}
+          <p class="hint" style="margin-top:8px;">Answer: <strong>{{ q.correct_answer }}</strong></p>
+        {% endif %}
+      </div>
+    {% empty %}
+      <p class="muted">No practice questions were generated.</p>
+    {% endfor %}
+
+  {% elif agent_result.kind == 'kv' %}
+    <div class="kv-block">
+      {% include "partials/_kv_rows.html" with rows=agent_result.rows %}
+    </div>
+  {% endif %}
+</div>
+{% endif %}

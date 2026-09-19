@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}{{ plan.title }}{% endblock %}
+{% block page_title %}🗒 {{ plan.title }}{% endblock %}
+{% block page_subtitle %}{{ plan.student.username }} · created {{ plan.created_at|date:"M j, Y" }}{% endblock %}
+
+{% block content %}
+<a href="{% if is_owner %}{% url 'student_dashboard' %}{% else %}{% url 'instructor_dashboard' %}{% endif %}" class="back-link">← Back to dashboard</a>
+
+{% if pending_confirm %}
+  <div class="confirm-banner">
+    <p>⚠️ Confirm: <strong>{{ pending_confirm.action }}</strong> on item #{{ pending_confirm.id }}? This can't be undone.</p>
+    <form method="post" action="{% url 'student_action' pending_confirm.action %}">
+      {% csrf_token %}
+      <input type="hidden" name="{{ pending_confirm.field|default:'task_id' }}" value="{{ pending_confirm.id }}">
+      <input type="hidden" name="confirm" value="true">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <button class="btn btn-danger" type="submit">Yes, confirm</button>
+    </form>
+  </div>
+{% endif %}
+
+<div class="card">
+  <span class="status status-{{ plan.status }}">{{ plan.get_status_display }}</span>
+  {% if plan.created_via_agent %}<span class="ai-badge" style="margin-left:8px;">✨ AI-generated</span>{% endif %}
+  <div class="summary-box">{{ plan.summary }}</div>
+  {% if plan.review_note %}
+    <p class="hint">📝 Instructor note: {{ plan.review_note }} {% if plan.reviewed_by %}— {{ plan.reviewed_by.username }}{% endif %}</p>
+  {% endif %}
+
+  {% if is_reviewing_instructor and plan.status == "pending" %}
+    <div class="btn-row" style="margin-top:16px;border-top:1px dashed var(--border);padding-top:16px;">
+      <form method="post" action="{% url 'instructor_action' 'review_study_plan' %}" class="inline-form">
+        {% csrf_token %}
+        <input type="hidden" name="plan_id" value="{{ plan.id }}">
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <input type="hidden" name="decision" value="approved">
+        <input type="text" name="note" placeholder="Optional note">
+        <button class="btn btn-small btn-success" type="submit">✅ Approve</button>
+      </form>
+      <form method="post" action="{% url 'instructor_action' 'review_study_plan' %}" class="inline-form">
+        {% csrf_token %}
+        <input type="hidden" name="plan_id" value="{{ plan.id }}">
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <input type="hidden" name="decision" value="rejected">
+        <input type="text" name="note" placeholder="Why? (optional)">
+        <button class="btn btn-small btn-danger" type="submit">❌ Reject</button>
+      </form>
+    </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2 class="section-title">✅ Progress</h2>
+  <div class="progress-track"><div class="progress-fill" style="width:{{ progress_percent }}%"></div></div>
+  <p class="hint" style="margin-top:0;">{{ done_tasks }} of {{ total_tasks }} tasks done ({{ progress_percent }}%)</p>
+
+  <ul class="checklist">
+    {% for t in tasks %}
+      <li class="{% if t.is_done %}done{% endif %}">
+        {% if is_owner %}
+          <form method="post" action="{% url 'student_action' 'mark_task_done' %}" style="margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="task_id" value="{{ t.id }}">
+            <input type="hidden" name="is_done" value="{% if t.is_done %}false{% else %}true{% endif %}">
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <button type="submit" class="checkbox-btn" aria-label="Toggle done">{% if t.is_done %}☑{% else %}☐{% endif %}</button>
+          </form>
+        {% else %}
+          <input type="checkbox" {% if t.is_done %}checked{% endif %} disabled>
+        {% endif %}
+        <span class="task-desc">{{ t.description }}</span>
+        <span class="task-topic">{{ t.topic.name }}</span>
+        <span class="priority-badge priority-{{ t.priority }}">{{ t.priority|upper }}</span>
+        {% if is_owner %}
+          <form method="post" action="{% url 'student_action' 'generate_practice_quiz' %}" style="margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="task_id" value="{{ t.id }}">
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <button class="btn btn-small btn-ghost" type="submit" title="AI: generate practice questions for this task">🎯 Practice with AI</button>
+          </form>
+          <form method="post" action="{% url 'student_action' 'delete_practice_task' %}" style="margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="task_id" value="{{ t.id }}">
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <button class="btn btn-small btn-ghost" type="submit" title="Delete task">🗑</button>
+          </form>
+        {% endif %}
+      </li>
+    {% empty %}
+      <li><span class="muted">No practice tasks yet.</span></li>
+    {% endfor %}
+  </ul>
+
+  {% if is_owner %}
+    <details class="disclosure">
+      <summary>+ Add a practice task</summary>
+      <form method="post" action="{% url 'student_action' 'create_practice_task' %}" class="inline-form">
+        {% csrf_token %}
+        <input type="hidden" name="plan_id" value="{{ plan.id }}">
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <input type="number" name="topic_id" placeholder="Topic ID" required style="width:100px;">
+        <input type="text" name="description" placeholder="What to practice" required style="flex:1;min-width:200px;">
+        <button class="btn btn-small" type="submit">Add task</button>
+      </form>
+    </details>
+  {% endif %}
+</div>
+{% endblock %}

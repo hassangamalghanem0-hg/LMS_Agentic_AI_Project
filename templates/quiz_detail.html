@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ quiz.title }}{% endblock %}
+{% block page_title %}{{ quiz.title }}{% endblock %}
+{% block page_subtitle %}{{ quiz.course.title }} · {{ quiz.topic.name }}{% endblock %}
+
+{% block content %}
+<a href="{% url 'student_dashboard' %}" class="hint">&larr; Back to dashboard</a>
+
+{% if existing %}
+<div class="card" style="margin-top:14px;">
+  <h2 class="section-title">Your last attempt</h2>
+  <p>Status: <span class="status status-{{ existing.status }}">{{ existing.get_status_display }}</span>
+     {% if existing.score is not None %} — Score: <strong>{{ existing.score }}%</strong>{% endif %}</p>
+  <p class="hint">You can submit again below; a new attempt will be recorded.</p>
+</div>
+{% endif %}
+
+<form method="post" action="{% url 'quiz_submit' quiz.id %}" class="card" style="margin-top:14px;">
+  {% csrf_token %}
+  {% for q in quiz.questions.all %}
+    <div class="question-block">
+      <span class="qtype ai-badge">{% if q.question_type == 'mcq' %}✅ Multiple Choice (MCQ) — auto-graded{% else %}✍️ Essay / short answer — graded by instructor{% endif %}</span>
+      <strong>Q{{ forloop.counter }}.</strong> {{ q.text }}
+      {% if q.question_type == 'mcq' %}
+        {% for c in q.choices.all %}
+          <div class="choice-row">
+            <input type="radio" name="q_{{ q.id }}" value="{{ c.id }}" id="c{{ c.id }}" required>
+            <label for="c{{ c.id }}">{{ c.text }}</label>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="field-group" style="margin-top:8px;">
+          <textarea name="q_{{ q.id }}" rows="4" placeholder="Write your answer…"></textarea>
+        </div>
+      {% endif %}
+    </div>
+  {% empty %}
+    <p class="muted">This quiz has no questions yet.</p>
+  {% endfor %}
+  <button class="btn" type="submit">Submit Answers</button>
+</form>
+{% endblock %}
+
+{% block chat %}
+{% include "chat_widget.html" with agent_chat_url_name="student_chat" title="Student Agent" %}
+{% endblock %}

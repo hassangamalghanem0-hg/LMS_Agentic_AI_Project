@@ -1,0 +1,18 @@
+# تشغيل PostgreSQL محليًا بدون ما تثبته على جهازك:
+#   docker compose up -d
+# بعدها المشروع (بالإعدادات الافتراضية في .env.example) هيلاقيها على localhost:5432
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lms_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345
+    ports:
+      - "5432:5432"
+    volumes:
+      - lms_pgdata:/var/lib/postgresql/data
+
+volumes:
+  lms_pgdata:
