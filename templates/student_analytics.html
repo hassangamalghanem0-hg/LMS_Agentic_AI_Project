@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}My Learning Analytics{% endblock %}
+{% block page_title %}📈 My Learning Analytics{% endblock %}
+{% block page_subtitle %}How you're doing across all your courses{% endblock %}
+
+{% block content %}
+<a href="{% url 'student_dashboard' %}" class="back-link">← Back to dashboard</a>
+
+<div class="grid-3" style="margin-bottom:20px;">
+  <div class="stat-card">
+    <div class="stat-value">{% if data.overall_progress_percent != None %}{{ data.overall_progress_percent }}%{% else %}—{% endif %}</div>
+    <div class="stat-label">Overall progress</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{% if data.quiz_average != None %}{{ data.quiz_average }}%{% else %}—{% endif %}</div>
+    <div class="stat-label">Quiz average</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ data.study_streak_days }} {% if data.study_streak_days == 1 %}Day{% else %}Days{% endif %}</div>
+    <div class="stat-label">Study streak</div>
+  </div>
+</div>
+
+<div class="grid-3" style="margin-bottom:20px;">
+  <div class="stat-card">
+    <div class="stat-value" style="font-size:20px;">{{ data.strongest_topic|default:"—" }}</div>
+    <div class="stat-label">Strongest topic</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" style="font-size:20px;">{{ data.weakest_topic|default:"—" }}</div>
+    <div class="stat-label">Weakest topic</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ data.completed_materials }} / {{ data.total_materials }}</div>
+    <div class="stat-label">Completed materials</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 class="section-title">✨ AI Insight <span class="ai-badge">AI</span></h2>
+  {% if data.insight %}
+    <div class="summary-box">{{ data.insight|linebreaksbr }}</div>
+  {% else %}
+    <p class="muted">Not enough activity yet to generate an insight -- take a quiz or mark a material as studied.</p>
+  {% endif %}
+</div>
+{% endblock %}
