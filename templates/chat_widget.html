@@ -1,0 +1,29 @@
+{% load static %}
+<div class="chat-menu hidden" id="chat-menu">
+  <button class="chat-menu-item" onclick="openPanel('agent-panel')">
+    <span class="chat-menu-icon">🤖</span>
+    <span><strong>{{ title }}</strong><small>Takes real actions on your data</small></span>
+  </button>
+  <button class="chat-menu-item" onclick="openPanel('bot-panel')">
+    <span class="chat-menu-icon">💬</span>
+    <span><strong>Chatbot</strong><small>Read-only questions & answers</small></span>
+  </button>
+</div>
+
+<div id="agent-panel" class="chat-panel hidden" data-endpoint="{% url agent_chat_url_name %}">
+  <div class="chat-head">{{ title }} <small>— takes real actions</small> <span class="close" onclick="closePanel('agent-panel')">✕</span></div>
+  <div class="chat-body" id="agent-panel-body"></div>
+  <form class="chat-input" onsubmit="return sendChat(event, 'agent-panel')">
+    <input type="text" placeholder="Ask your agent to do something…" required>
+    <button type="submit">➤</button>
+  </form>
+</div>
+
+<div id="bot-panel" class="chat-panel hidden" data-endpoint="{% url 'chatbot_ask' %}">
+  <div class="chat-head chat-head-alt">Chatbot <small>— read-only, no tools</small> <span class="close" onclick="closePanel('bot-panel')">✕</span></div>
+  <div class="chat-body" id="bot-panel-body"></div>
+  <form class="chat-input" onsubmit="return sendChat(event, 'bot-panel')">
+    <input type="text" placeholder="e.g. what's my grade so far?" required>
+    <button type="submit">➤</button>
+  </form>
+</div>
