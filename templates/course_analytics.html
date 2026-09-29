@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Analytics — {{ course.title }}{% endblock %}
+{% block page_title %}📊 Course Analytics{% endblock %}
+{% block page_subtitle %}{{ course.title }}{% endblock %}
+
+{% block content %}
+<a href="{% url 'instructor_dashboard' %}" class="back-link">← Back to dashboard</a>
+
+<div class="grid-3" style="margin-bottom:20px;">
+  <div class="stat-card"><div class="stat-value">{{ data.student_count }}</div><div class="stat-label">Enrolled students</div></div>
+  <div class="stat-card"><div class="stat-value">{{ data.quiz_count }}</div><div class="stat-label">Quizzes</div></div>
+  <div class="stat-card"><div class="stat-value">{% if data.avg_score != None %}{{ data.avg_score }}%{% else %}—{% endif %}</div><div class="stat-label">Average score ({{ data.attempt_count }} attempts)</div></div>
+</div>
+
+{% if data.pending_essay_count %}
+  <div class="msg msg-warning" style="margin-bottom:20px;">✍️ {{ data.pending_essay_count }} essay answer(s) are waiting for manual grading in this course.</div>
+{% endif %}
+
+<div class="card">
+  <h2 class="section-title">🧠 Instructor AI Insights <span class="ai-badge">AI</span></h2>
+  <p class="muted">Get an AI read on the class's hardest topic, average score, and how many students are at risk -- then generate a remedial quiz in one click.</p>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+    <form method="post" action="{% url 'instructor_action' 'analyze_class_performance' %}">
+      {% csrf_token %}
+      <input type="hidden" name="course_id" value="{{ course.id }}">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <button class="btn btn-small" type="submit">🧠 Analyze class performance</button>
+    </form>
+    <form method="post" action="{% url 'instructor_action' 'generate_remedial_quiz' %}">
+      {% csrf_token %}
+      <input type="hidden" name="course_id" value="{{ course.id }}">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <button class="btn btn-small btn-ghost" type="submit">🩹 Generate remedial quiz (weakest topic)</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2 class="section-title">✨ AI Course Summary <span class="ai-badge">AI</span></h2>
+  {% if data.ai_summary %}
+    <div class="summary-box">{{ data.ai_summary }}</div>
+    <p class="hint">Generated {{ data.ai_summary_generated_at|default:"—" }}. Regenerate any time using the latest data.</p>
+  {% else %}
+    <p class="muted">No AI summary generated yet for this course.</p>
+  {% endif %}
+  <form method="post" action="{% url 'instructor_action' 'generate_course_summary' %}" style="margin-top:10px;">
+    {% csrf_token %}
+    <input type="hidden" name="course_id" value="{{ course.id }}">
+    <input type="hidden" name="next" value="{{ request.path }}">
+    <button class="btn btn-small" type="submit">✨ {% if data.ai_summary %}Regenerate{% else %}Generate{% endif %} Summary</button>
+  </form>
+</div>
+
+<div class="two-col-charts">
+  <div class="card chart-card">
+    <h2 class="section-title">🎯 Average mastery by topic</h2>
+    {% if data.topic_breakdown %}
+      <div class="chart-wrap"><canvas id="topicChart"></canvas></div>
+    {% else %}
+      <p class="muted">No topic mastery data yet — students haven't taken any quizzes.</p>
+    {% endif %}
+  </div>
+  <div class="card chart-card">
+    <h2 class="section-title">📈 Score distribution</h2>
+    {% if data.attempt_count %}
+      <div class="chart-wrap"><canvas id="scoreChart"></canvas></div>
+    {% else %}
+      <p class="muted">No completed quiz attempts yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2 class="section-title">🕘 Recent quiz attempts</h2>
+  {% if data.recent_attempts %}
+    <table class="table">
+      <thead><tr><th>Student</th><th>Quiz</th><th>Score</th><th>Completed</th></tr></thead>
+      <tbody>
+        {% for a in data.recent_attempts %}
+          <tr><td>{{ a.student }}</td><td>{{ a.quiz }}</td><td>{% if a.score != None %}{{ a.score }}%{% else %}—{% endif %}</td><td class="muted">{{ a.completed_at|default:"—" }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">No attempts yet.</p>
+  {% endif %}
+</div>
+
+{{ data.topic_breakdown|json_script:"topic-data" }}
+{{ data.score_distribution|json_script:"score-data" }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  const topicData = JSON.parse(document.getElementById('topic-data').textContent);
+  const scoreData = JSON.parse(document.getElementById('score-data').textContent);
+
+  function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function themeColors() {
+    return {
+      text: cssVar('--text-muted'),
+      grid: cssVar('--border-soft'),
+      primary: cssVar('--primary'),
+      primarySoft: cssVar('--primary-soft'),
+      pie: [cssVar('--danger'), cssVar('--warning'), cssVar('--success'), cssVar('--primary')]
+    };
+  }
+
+  const charts = [];
+  function applyTheme() {
+    const c = themeColors();
+    Chart.defaults.color = c.text;
+    Chart.defaults.borderColor = c.grid;
+    charts.forEach(chart => {
+      chart.data.datasets.forEach((ds, i) => {
+        if (chart.config.type === 'doughnut') { ds.backgroundColor = c.pie; }
+        else { ds.backgroundColor = c.primarySoft; ds.borderColor = c.primary; }
+      });
+      if (chart.options.scales) {
+        Object.values(chart.options.scales).forEach(scale => {
+          scale.ticks = scale.ticks || {}; scale.ticks.color = c.text;
+          scale.grid = scale.grid || {}; scale.grid.color = c.grid;
+        });
+      }
+      chart.update();
+    });
+  }
+
+  const c0 = themeColors();
+  Chart.defaults.color = c0.text;
+  Chart.defaults.borderColor = c0.grid;
+
+  if (topicData.length) {
+    charts.push(new Chart(document.getElementById('topicChart'), {
+      type: 'bar',
+      data: {
+        labels: topicData.map(t => t.topic),
+        datasets: [{ label: 'Avg mastery %', data: topicData.map(t => t.avg_mastery), backgroundColor: c0.primarySoft, borderColor: c0.primary, borderWidth: 1.5, borderRadius: 6 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } }, plugins: { legend: { display: false } } }
+    }));
+  }
+  if (scoreData.length) {
+    charts.push(new Chart(document.getElementById('scoreChart'), {
+      type: 'doughnut',
+      data: {
+        labels: scoreData.map(s => s.label),
+        datasets: [{ data: scoreData.map(s => s.count), backgroundColor: c0.pie }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    }));
+  }
+
+  document.addEventListener('themechange', applyTheme);
+})();
+</script>
+{% endblock %}
