@@ -1,0 +1,114 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}LMS Agentic AI{% endblock %}</title>
+<script>
+(function () {
+  try {
+    var t = localStorage.getItem('lms-theme');
+    document.documentElement.setAttribute('data-theme', (t === 'dark' || t === 'light') ? t : 'light');
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', 'light');
+  }
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body>
+{% if user.is_authenticated %}
+<div class="shell">
+  <aside class="sidebar">
+    <a href="{% url 'dashboard' %}" class="brand"><span class="logo">🤖</span> LMS Agentic AI</a>
+    <nav>
+      {% block sidebar_tabs %}
+        {% if user.is_student %}
+          <a href="{% url 'student_dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'student_dashboard' %}active{% endif %}">🏠 Overview</a>
+        {% elif user.is_instructor %}
+          <a href="{% url 'instructor_dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'instructor_dashboard' %}active{% endif %}">🏠 Overview</a>
+        {% endif %}
+      {% endblock %}
+      <button type="button" class="nav-item" onclick="toggleMenu()">🤖 Agents &amp; Chat</button>
+      {% if user.is_staff %}
+        <a href="{% url 'admin:index' %}" class="nav-item">⚙️ Admin</a>
+      {% endif %}
+    </nav>
+    <div class="foot">
+      <div class="user-chip">
+        <span class="avatar">{{ user.username|slice:":1"|upper }}</span>
+        <div>
+          <div>{{ user.username }}</div>
+          <div class="role-tag">{{ user.role }}</div>
+        </div>
+      </div>
+      <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button class="logout-link" type="submit">Logout</button>
+      </form>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div>
+        <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+        <div class="subtitle">{% block page_subtitle %}{% endblock %}</div>
+      </div>
+      <div class="topbar-actions">
+      {% include "partials/theme_toggle.html" %}
+      <div class="notif-wrap">
+        <button type="button" class="notif-bell" onclick="toggleNotifs()" aria-label="Notifications">
+          🔔
+          {% if nav_unread_count %}<span class="notif-badge">{{ nav_unread_count }}</span>{% endif %}
+        </button>
+        <div class="notif-dropdown hidden" id="notif-dropdown">
+          <div class="notif-dropdown-head">
+            <span>Notifications</span>
+            {% if nav_unread_count %}
+              <form method="post" action="{% url 'notification_mark_all_read' %}">
+                {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit">Mark all read</button>
+              </form>
+            {% endif %}
+          </div>
+          {% for n in nav_notifications %}
+            <form method="post" action="{% url 'notification_mark_read' n.id %}" class="notif-item">
+              {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+              {{ n.message }}
+              <time>{{ n.created_at|date:"M j, H:i" }}</time>
+              <button type="submit" class="btn btn-small btn-ghost" style="margin-top:6px;padding:3px 9px;font-size:10.5px;">Mark read</button>
+            </form>
+          {% empty %}
+            <div class="notif-empty">You're all caught up 🎉</div>
+          {% endfor %}
+        </div>
+      </div>
+      </div>
+    </div>
+    <main class="container">
+      {% if messages %}
+        <div class="messages">
+          {% for message in messages %}
+            <div class="msg msg-{{ message.tags }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% include "partials/agent_result.html" %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% block chat %}{% endblock %}
+{% else %}
+<main>{% block guest_content %}{% endblock %}</main>
+{% endif %}
+<script src="{% static 'js/theme.js' %}"></script>
+<script src="{% static 'js/chat.js' %}"></script>
+<script src="{% static 'js/dashboard.js' %}"></script>
+</body>
+</html>
