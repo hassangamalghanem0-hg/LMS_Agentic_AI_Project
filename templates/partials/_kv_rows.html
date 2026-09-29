@@ -1,0 +1,25 @@
+{% for row in rows %}
+  <div class="kv-row">
+    <div class="kv-label">{{ row.label }}</div>
+    <div class="kv-value">
+      {% if row.kind == 'text' %}
+        <div class="summary-box" style="margin-top:4px;">{{ row.text|linebreaksbr }}</div>
+      {% elif row.kind == 'list' %}
+        <ul class="kv-list">
+          {% for item in row.items %}<li>{{ item }}</li>{% endfor %}
+        </ul>
+      {% elif row.kind == 'table' %}
+        <table class="table" style="margin-top:6px;">
+          <tr>{% for h in row.headers %}<th>{{ h }}</th>{% endfor %}</tr>
+          {% for r in row.rows %}<tr>{% for cell in r %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}
+        </table>
+      {% elif row.kind == 'kv' %}
+        <div class="kv-block">{% include "partials/_kv_rows.html" with rows=row.rows %}</div>
+      {% else %}
+        {{ row.text }}
+      {% endif %}
+    </div>
+  </div>
+{% empty %}
+  <p class="muted">No details to show.</p>
+{% endfor %}
