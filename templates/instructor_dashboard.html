@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+{% block title %}Instructor Dashboard{% endblock %}
+{% block page_title %}Welcome back, {{ user.username }} 👋{% endblock %}
+{% block page_subtitle %}Courses, lectures, materials, quizzes & grading{% endblock %}
+
+{% block sidebar_tabs %}
+<button type="button" class="nav-item active" data-tab-key="instructor-dashboard" data-tab="tab-overview">🏠 Overview</button>
+<button type="button" class="nav-item" data-tab-key="instructor-dashboard" data-tab="tab-lectures">🎥 Lectures</button>
+<button type="button" class="nav-item" data-tab-key="instructor-dashboard" data-tab="tab-materials">📎 Materials</button>
+<button type="button" class="nav-item" data-tab-key="instructor-dashboard" data-tab="tab-quizzes">📝 Quizzes &amp; Exams</button>
+<button type="button" class="nav-item" data-tab-key="instructor-dashboard" data-tab="tab-grading">✅ Grading Queue</button>
+<button type="button" class="nav-item" data-tab-key="instructor-dashboard" data-tab="tab-students">👥 Students</button>
+{% endblock %}
+
+{% block content %}
+{% if pending_confirm.action %}
+<div class="confirm-banner">
+  <p>⚠ Confirm destructive action <strong>{{ pending_confirm.action }}</strong> (id={{ pending_confirm.id }})?</p>
+  <form method="post" action="{% url 'instructor_action' pending_confirm.action %}">
+    {% csrf_token %}
+    <input type="hidden" name="{{ pending_confirm.field|default:'quiz_id' }}" value="{{ pending_confirm.id }}">
+    <input type="hidden" name="confirm" value="true">
+    <button class="btn btn-danger" type="submit">Yes, confirm</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="grid-3" style="margin-bottom:20px;">
+  <div class="stat-card"><div class="stat-value">{{ courses|length }}</div><div class="stat-label">Courses taught</div></div>
+  <div class="stat-card"><div class="stat-value">{{ total_students }}</div><div class="stat-label">Total students</div></div>
+  <div class="stat-card"><div class="stat-value">{{ pending_essays|length }}</div><div class="stat-label">Essays awaiting grading</div></div>
+</div>
+
+<div class="tab-panels" data-tab-key="instructor-dashboard">
+  <div class="tab-panel active" id="tab-overview">
+    <div class="card">
+      <h2 class="section-title">Pending Study Plans</h2>
+      <table class="table">
+        <tr><th>Student</th><th>Plan</th><th>Summary</th><th>Actions</th></tr>
+        {% for plan in pending_plans %}
+        <tr>
+          <td>{{ plan.student.username }}</td>
+          <td>{{ plan.title }}</td>
+          <td class="muted">{{ plan.summary }}</td>
+          <td>
+            <form method="post" action="{% url 'instructor_action' 'review_study_plan' %}" style="display:inline">
+              {% csrf_token %}
+              <input type="hidden" name="plan_id" value="{{ plan.id }}">
+              <input type="hidden" name="decision" value="approved">
+              <button class="btn btn-small btn-success" type="submit">Approve</button>
+            </form>
+            <form method="post" action="{% url 'instructor_action' 'review_study_plan' %}" style="display:inline">
+              {% csrf_token %}
+              <input type="hidden" name="plan_id" value="{{ plan.id }}">
+              <input type="hidden" name="decision" value="rejected">
+              <button class="btn btn-small btn-danger" type="submit">Reject</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}<tr><td colspan="4" class="muted">Nothing pending review.</td></tr>{% endfor %}
+      </table>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">📊 Course Analytics &amp; AI Summary</h2>
+      <p class="hint" style="margin-top:0;">Opens a full page with charts — score distribution, topic mastery, recent attempts, and the AI-generated course summary.</p>
+      {% for c in courses %}
+        <div class="btn-row">
+          <span style="align-self:center;font-size:13px;flex:1;">{{ c.title }}</span>
+          <a class="btn btn-small" href="{% url 'course_analytics' c.id %}">📊 View full analytics & summary →</a>
+        </div>
+      {% empty %}<p class="muted">You don't own any courses yet.</p>{% endfor %}
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-lectures">
+    <div class="card">
+      <h2 class="section-title">🎥 Upload a Lecture Video</h2>
+      <form method="post" action="{% url 'instructor_upload_material' %}" enctype="multipart/form-data" class="inline-form stacked">
+        {% csrf_token %}
+        <div class="field-group">
+          <label class="field-label">Course</label>
+          <select name="course_id" required>
+            {% for c in courses %}<option value="{{ c.id }}">{{ c.title }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Title (optional)</label>
+          <input type="text" name="title" placeholder="e.g. Week 3 — Live Lecture">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Video file (MP4, WebM, MOV, MKV, AVI)</label>
+          <input type="file" name="file" accept=".mp4,.webm,.mov,.mkv,.avi" required>
+        </div>
+        <button class="btn" type="submit">Upload Lecture</button>
+      </form>
+      <p class="hint">Video lectures are for students to watch — the AI does not read or summarize video content.</p>
+    </div>
+
+    {% for c in courses %}
+    <div class="card">
+      <h2 class="section-title">{{ c.title }} — Lectures</h2>
+      {% for m in c.materials.all %}{% if m.kind == 'video' %}
+        <div class="material-row">
+          <div style="display:flex;gap:12px;flex:1;min-width:220px;">
+            <div class="file-icon">🎬</div>
+            <div style="flex:1;">
+              <strong>{{ m.title }}</strong>
+              <span class="status" style="background:var(--primary-soft);color:var(--primary-2);">video lecture</span>
+              <br>
+              <video controls preload="metadata" style="max-width:420px;width:100%;border-radius:var(--radius-sm);margin-top:8px;border:1px solid var(--border);">
+                <source src="{{ m.file.url }}">
+                Your browser can't play this video. <a href="{{ m.file.url }}">Download it instead</a>.
+              </video>
+            </div>
+          </div>
+          <div class="btn-row" style="margin-bottom:0;">
+            <form method="post" action="{% url 'instructor_action' 'delete_material' %}">
+              {% csrf_token %}<input type="hidden" name="material_id" value="{{ m.id }}">
+              <button class="btn btn-small btn-danger" type="submit">🗑 Delete</button>
+            </form>
+          </div>
+        </div>
+      {% endif %}{% empty %}<p class="muted">No lecture videos uploaded for this course yet.</p>{% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="tab-panel" id="tab-materials">
+    <div class="card">
+      <h2 class="section-title">📎 Upload Course Material</h2>
+      <form method="post" action="{% url 'instructor_upload_material' %}" enctype="multipart/form-data" class="inline-form stacked">
+        {% csrf_token %}
+        <div class="field-group">
+          <label class="field-label">Course</label>
+          <select name="course_id" required>
+            {% for c in courses %}<option value="{{ c.id }}">{{ c.title }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Title (optional)</label>
+          <input type="text" name="title" placeholder="e.g. Week 3 Slides">
+        </div>
+        <div class="field-group">
+          <label class="field-label">File (PDF, DOCX, PPTX, or TXT)</label>
+          <input type="file" name="file" accept=".pdf,.docx,.pptx,.txt,.md" required>
+        </div>
+        <button class="btn" type="submit">Upload</button>
+      </form>
+      <p class="hint">The file's text is extracted automatically so the AI can read it for summaries/quizzes below.</p>
+    </div>
+
+    {% for c in courses %}
+    <div class="card">
+      <h2 class="section-title">{{ c.title }} — Materials</h2>
+      {% for m in c.materials.all %}{% if m.kind != 'video' %}
+        <div class="material-row">
+          <div style="display:flex;gap:12px;flex:1;min-width:220px;">
+            <div class="file-icon">{% if m.kind == 'pdf' %}📕{% elif m.kind == 'docx' %}📘{% elif m.kind == 'pptx' %}📙{% else %}📄{% endif %}</div>
+            <div style="flex:1;">
+              <strong>{{ m.title }}</strong>
+              <span class="status status-{{ m.extraction_status }}">{{ m.extraction_status }}</span>
+              <br>
+              <a href="{{ m.file.url }}" target="_blank" class="hint">⬇ Download</a>
+              {% if m.ai_summary %}
+                <div class="summary-box"><span class="ai-badge">✨ AI Summary</span><br>{{ m.ai_summary|linebreaksbr }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="btn-row" style="margin-bottom:0;">
+            <form method="post" action="{% url 'instructor_action' 'generate_summary_from_material' %}">
+              {% csrf_token %}<input type="hidden" name="material_id" value="{{ m.id }}">
+              <button class="btn btn-small btn-ghost" type="submit">✨ Generate Summary</button>
+            </form>
+            <form method="post" action="{% url 'instructor_action' 'delete_material' %}">
+              {% csrf_token %}<input type="hidden" name="material_id" value="{{ m.id }}">
+              <button class="btn btn-small btn-danger" type="submit">🗑 Delete</button>
+            </form>
+          </div>
+          <details class="disclosure" style="width:100%;">
+            <summary>✨ Generate quiz from this file</summary>
+            <form method="post" action="{% url 'instructor_action' 'generate_quiz_from_material' %}" class="inline-form">
+              {% csrf_token %}
+              <input type="hidden" name="material_id" value="{{ m.id }}">
+              <select name="topic_id" required>
+                {% for t in c.topics.all %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+              </select>
+              <span class="field-inline">
+                <label for="mcq_mat_{{ m.id }}">✅ عدد أسئلة MCQ (اختيار من متعدد)</label>
+                <input type="number" id="mcq_mat_{{ m.id }}" name="num_mcq" min="0" max="20" value="5" style="width:80px;">
+              </span>
+              <span class="field-inline">
+                <label for="essay_mat_{{ m.id }}">✍️ عدد أسئلة Essay (مقالية)</label>
+                <input type="number" id="essay_mat_{{ m.id }}" name="num_essay" min="0" max="20" value="0" style="width:80px;">
+              </span>
+              <input type="text" name="title" placeholder="Quiz title (optional)">
+              <button class="btn btn-small" type="submit">Generate Quiz</button>
+            </form>
+          </details>
+        </div>
+      {% endif %}{% empty %}<p class="muted">No materials uploaded for this course yet.</p>{% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="tab-panel" id="tab-quizzes">
+    {% for c in courses %}
+    <div class="card">
+      <h2 class="section-title">{{ c.title }} — Quizzes</h2>
+
+      <form method="post" action="{% url 'instructor_action' 'create_quiz' %}" class="inline-form">
+        {% csrf_token %}
+        <input type="hidden" name="course_id" value="{{ c.id }}">
+        <select name="topic_id" required>
+          {% for t in c.topics.all %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+        </select>
+        <input type="text" name="title" placeholder="Quiz title (optional)">
+        <button class="btn btn-small" type="submit">+ Create Empty Quiz</button>
+      </form>
+
+      <details class="disclosure">
+        <summary>✨ Generate a recommended AI quiz for a topic (no file needed)</summary>
+        <p class="hint" style="margin-top:0;">Uses the course's uploaded materials as context automatically — pick the topic and how many of each question type you want.</p>
+        <form method="post" action="{% url 'instructor_action' 'generate_quiz_for_topic' %}" class="inline-form">
+          {% csrf_token %}
+          <input type="hidden" name="course_id" value="{{ c.id }}">
+          <select name="topic_id" required>
+            {% for t in c.topics.all %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+          </select>
+          <span class="field-inline">
+            <label for="mcq_topic_{{ c.id }}">✅ عدد أسئلة MCQ (اختيار من متعدد)</label>
+            <input type="number" id="mcq_topic_{{ c.id }}" name="num_mcq" min="0" max="20" value="5" style="width:80px;">
+          </span>
+          <span class="field-inline">
+            <label for="essay_topic_{{ c.id }}">✍️ عدد أسئلة Essay (مقالية)</label>
+            <input type="number" id="essay_topic_{{ c.id }}" name="num_essay" min="0" max="20" value="0" style="width:80px;">
+          </span>
+          <input type="text" name="title" placeholder="Quiz title (optional)">
+          <button class="btn btn-small" type="submit">✨ Generate Recommended Quiz</button>
+        </form>
+      </details>
+
+      <table class="table">
+        <tr><th>Title</th><th>Topic</th><th>Questions</th><th>Active</th><th></th></tr>
+        {% for q in c.quizzes.all %}
+        <tr>
+          <td>{{ q.title }} {% if q.generated_from_material %}<span class="ai-badge">✨ AI</span>{% endif %}</td>
+          <td>{{ q.topic.name }}</td>
+          <td>{{ q.questions.count }}</td>
+          <td>{{ q.is_active|yesno:"✅,🚫" }}</td>
+          <td>
+            {% if q.is_active %}
+            <form method="post" action="{% url 'instructor_action' 'cancel_quiz' %}">
+              {% csrf_token %}<input type="hidden" name="quiz_id" value="{{ q.id }}">
+              <button class="btn btn-small btn-danger" type="submit">Cancel</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}<tr><td colspan="5" class="muted">No quizzes yet.</td></tr>{% endfor %}
+      </table>
+
+      <details class="disclosure">
+        <summary>+ Manually add a question to a quiz</summary>
+        <form method="post" action="{% url 'instructor_action' 'add_question_to_quiz' %}" class="inline-form stacked" onsubmit="return prepChoices(this)">
+          {% csrf_token %}
+          <div class="field-group">
+            <label class="field-label">Quiz</label>
+            <select name="quiz_id" required>
+              {% for q in c.quizzes.all %}<option value="{{ q.id }}">{{ q.title }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Question type</label>
+            <select name="question_type" class="qtype-select" onchange="toggleChoices(this)" required>
+              <option value="mcq">Multiple choice (auto-graded)</option>
+              <option value="essay">Essay (manually graded)</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Question text</label>
+            <textarea name="text" rows="2" required></textarea>
+          </div>
+          <div class="choices-wrap">
+            <label class="field-label">Choices (tick the correct one)</label>
+            {% for i in "1234" %}
+              <div class="choice-row">
+                <input type="radio" name="correct_idx" value="{{ forloop.counter0 }}" {% if forloop.first %}checked{% endif %}>
+                <input type="text" class="choice-text" placeholder="Choice {{ forloop.counter }}">
+              </div>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="choices" class="choices-json">
+          <button class="btn btn-small" type="submit">+ Add Question</button>
+        </form>
+      </details>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="tab-panel" id="tab-grading">
+    <div class="card">
+      <h2 class="section-title">Essay / Short-Answer Grading Queue</h2>
+      {% for r in pending_essays %}
+        <div class="question-block">
+          <strong>{{ r.attempt.student.username }}</strong> — {{ r.attempt.quiz.title }}<br>
+          <span class="muted">Q: {{ r.question.text }}</span>
+          <div class="summary-box">{{ r.answer_text|default:"(no answer submitted)" }}</div>
+          <form method="post" action="{% url 'instructor_action' 'grade_essay_response' %}" class="inline-form">
+            {% csrf_token %}
+            <input type="hidden" name="response_id" value="{{ r.id }}">
+            <select name="score">
+              <option value="1.0">Full credit (1.0)</option>
+              <option value="0.75">0.75</option>
+              <option value="0.5">Half credit (0.5)</option>
+              <option value="0.25">0.25</option>
+              <option value="0.0">No credit (0.0)</option>
+            </select>
+            <input type="text" name="feedback" placeholder="Feedback (optional)">
+            <button class="btn btn-small btn-success" type="submit">Submit Grade</button>
+          </form>
+        </div>
+      {% empty %}<p class="muted">Nothing waiting for grading 🎉</p>{% endfor %}
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-students">
+    {% for c in courses %}
+    <div class="card">
+      <h2 class="section-title">{{ c.title }} — Students</h2>
+      <table class="table">
+        <tr><th>Student</th><th></th></tr>
+        {% for s in c.students.all %}
+        <tr>
+          <td>{{ s.username }}</td>
+          <td>
+            <a class="btn btn-small btn-ghost" href="{% url 'student_performance' c.id s.id %}">📈 View full performance →</a>
+          </td>
+        </tr>
+        {% empty %}<tr><td colspan="2" class="muted">No students enrolled.</td></tr>{% endfor %}
+      </table>
+
+      <details class="disclosure">
+        <summary>⚠️ Check for at-risk students</summary>
+        <form method="post" action="{% url 'instructor_action' 'get_at_risk_students' %}" class="inline-form">
+          {% csrf_token %}
+          <input type="hidden" name="course_id" value="{{ c.id }}">
+          <input type="number" name="threshold" value="50" min="0" max="100" title="Mastery threshold %" style="width:90px;">
+          <button class="btn btn-small" type="submit">Check now</button>
+        </form>
+        <p class="hint">Flags students whose average topic mastery is below the threshold — result shows as a notice above.</p>
+      </details>
+
+      <details class="disclosure">
+        <summary>📣 Send an announcement to this course</summary>
+        <form method="post" action="{% url 'instructor_action' 'send_announcement' %}" class="inline-form">
+          {% csrf_token %}
+          <input type="hidden" name="course_id" value="{{ c.id }}">
+          <input type="text" name="message" placeholder="e.g. New material posted, quiz due Friday" style="flex:1;min-width:240px;" required>
+          <button class="btn btn-small" type="submit">Notify all students</button>
+        </form>
+      </details>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+function toggleChoices(sel) {
+  const wrap = sel.closest('form').querySelector('.choices-wrap');
+  wrap.style.display = sel.value === 'mcq' ? 'block' : 'none';
+}
+function prepChoices(form) {
+  const rows = form.querySelectorAll('.choice-row');
+  const correctIdx = form.querySelector('input[name=correct_idx]:checked').value;
+  const choices = [];
+  rows.forEach((row, i) => {
+    const text = row.querySelector('.choice-text').value;
+    if (text) choices.push({ text: text, is_correct: String(i) === correctIdx });
+  });
+  if (form.querySelector('.qtype-select').value === 'mcq') {
+    form.querySelector('.choices-json').value = JSON.stringify(choices);
+  } else {
+    form.querySelector('.choices-json').value = '';
+  }
+  return true;
+}
+</script>
+{% endblock %}
+
+{% block chat %}
+{% include "chat_widget.html" with agent_chat_url_name="instructor_chat" title="Instructor Agent" %}
+{% endblock %}
