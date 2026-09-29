@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Performance — {{ data.student }}{% endblock %}
+{% block page_title %}📈 Student Performance{% endblock %}
+{% block page_subtitle %}{{ data.student }} · {{ course.title }}{% endblock %}
+
+{% block content %}
+<a href="{% url 'instructor_dashboard' %}" class="back-link">← Back to dashboard</a>
+
+<div class="two-col-charts">
+  <div class="card chart-card">
+    <h2 class="section-title">🎯 Mastery by topic</h2>
+    {% if data.topics %}
+      <div class="chart-wrap"><canvas id="masteryChart"></canvas></div>
+    {% else %}
+      <p class="muted">No topic mastery recorded yet for this student.</p>
+    {% endif %}
+  </div>
+  <div class="card chart-card">
+    <h2 class="section-title">📉 Score trend over time</h2>
+    {% if data.attempt_history %}
+      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+    {% else %}
+      <p class="muted">No completed quiz attempts yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2 class="section-title">🗂 Topic mastery detail</h2>
+  {% if data.topics %}
+    <ul class="list">
+      {% for t in data.topics %}
+        <li>
+          <span>{{ t.topic }}</span>
+          <span style="display:flex;align-items:center;gap:8px;">
+            <span class="bar"><span class="bar-fill" style="width:{{ t.mastery_percent }}%"></span></span>
+            {{ t.mastery_percent }}%
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">Nothing to show yet.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2 class="section-title">🧾 Quiz attempt history</h2>
+  {% if data.attempt_history %}
+    <table class="table">
+      <thead><tr><th>Quiz</th><th>Score</th><th>Completed</th></tr></thead>
+      <tbody>
+        {% for a in data.attempt_history %}
+          <tr><td>{{ a.quiz }}</td><td>{% if a.score != None %}{{ a.score }}%{% else %}—{% endif %}</td><td class="muted">{{ a.completed_at }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">No attempts yet.</p>
+  {% endif %}
+</div>
+
+{{ data.topics|json_script:"topic-data" }}
+{{ data.attempt_history|json_script:"history-data" }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  const topicData = JSON.parse(document.getElementById('topic-data').textContent);
+  const historyData = JSON.parse(document.getElementById('history-data').textContent);
+
+  function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function themeColors() {
+    return { text: cssVar('--text-muted'), grid: cssVar('--border-soft'), primary: cssVar('--primary'), primarySoft: cssVar('--primary-soft') };
+  }
+
+  const charts = [];
+  function applyTheme() {
+    const c = themeColors();
+    Chart.defaults.color = c.text;
+    Chart.defaults.borderColor = c.grid;
+    charts.forEach(chart => {
+      chart.data.datasets.forEach(ds => { ds.backgroundColor = c.primarySoft; ds.borderColor = c.primary; });
+      if (chart.options.scales) {
+        Object.values(chart.options.scales).forEach(scale => {
+          scale.ticks = scale.ticks || {}; scale.ticks.color = c.text;
+          scale.grid = scale.grid || {}; scale.grid.color = c.grid;
+        });
+      }
+      chart.update();
+    });
+  }
+
+  const c0 = themeColors();
+  Chart.defaults.color = c0.text;
+  Chart.defaults.borderColor = c0.grid;
+
+  if (topicData.length) {
+    charts.push(new Chart(document.getElementById('masteryChart'), {
+      type: 'bar',
+      data: { labels: topicData.map(t => t.topic), datasets: [{ label: 'Mastery %', data: topicData.map(t => t.mastery_percent), backgroundColor: c0.primarySoft, borderColor: c0.primary, borderWidth: 1.5, borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { beginAtZero: true, max: 100 } }, plugins: { legend: { display: false } } }
+    }));
+  }
+  if (historyData.length) {
+    charts.push(new Chart(document.getElementById('trendChart'), {
+      type: 'line',
+      data: {
+        labels: historyData.map(a => a.quiz),
+        datasets: [{ label: 'Score %', data: historyData.map(a => a.score), borderColor: c0.primary, backgroundColor: c0.primarySoft, tension: .3, fill: true, pointRadius: 4 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
+    }));
+  }
+
+  document.addEventListener('themechange', applyTheme);
+})();
+</script>
+{% endblock %}
